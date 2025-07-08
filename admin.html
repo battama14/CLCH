@@ -585,7 +585,6 @@
         navigator.serviceWorker.register('/firebase-messaging-sw.js')
           .then(registration => {
             console.log('Service Worker enregistré avec succès:', registration.scope);
-            messaging.useServiceWorker(registration);
             
             // Récupérer le token FCM avec la clé VAPID
             return messaging.getToken({vapidKey: vapidKey});

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CLCH - Test de Notification</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'A Attack Graffiti', 'Permanent Marker', cursive;
+      background-color: #222;
+      color: #fff;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 50px auto;
+      background-color: #333;
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    h1 {
+      font-size: 2.5rem;
+      color: #f5c400;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 0 #000;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-family: 'Bangers', cursive;
+      font-size: 1.2rem;
+      color: #f5c400;
+      margin-bottom: 8px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #444;
+      border-radius: 5px;
+      background-color: #222;
+      color: #fff;
+      font-family: 'Permanent Marker', cursive;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    input:focus, textarea:focus {
+      border-color: #f5c400;
+      outline: none;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #f5c400;
+      color: #000;
+      border: none;
+      border-radius: 5px;
+      font-family: 'Bangers', cursive;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    }
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #444;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .success {
+      border-left: 4px solid #4CAF50;
+    }
+    .error {
+      border-left: 4px solid #f44336;
+    }
+    .token-display {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #444;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .token-display h3 {
+      color: #f5c400;
+      margin-bottom: 10px;
+    }
+  </style>
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>TEST DE NOTIFICATION</h1>
+    
+    <div class="token-display">
+      <h3>Votre token FCM</h3>
+      <div id="device-token">Chargement du token...</div>
+    </div>
+    
+    <form id="notification-form">
+      <div class="form-group">
+        <label for="notification-title">Titre de la notification</label>
+        <input type="text" id="notification-title" value="CLCH - Nouvelle photo" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="notification-body">Corps de la notification</label>
+        <textarea id="notification-body" required>Une nouvelle photo a été envoyée et attend votre validation !</textarea>
+      </div>
+      
+      <button type="submit">ENVOYER LA NOTIFICATION DE TEST</button>
+    </form>
+    
+    <div id="result" class="result"></div>
+  </div>
+  
+  <script>
+    // Configuration Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyDDTsKpifjFMSSJrn20Xc3q8szf27F2ZP0",
+      authDomain: "clch-3a8f4.firebaseapp.com",
+      databaseURL: "https://clch-3a8f4-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "clch-3a8f4",
+      storageBucket: "clch-3a8f4.firebasestorage.app",
+      messagingSenderId: "258957198457",
+      appId: "1:258957198457:web:2998d1c0f6ba295f3080a8",
+      measurementId: "G-NWT4D2D1ER"
+    };
+    
+    // Initialiser Firebase
+    firebase.initializeApp(firebaseConfig);
+    
+    // Référence à la base de données
+    const database = firebase.database();
+    const adminTokensRef = database.ref('adminTokens');
+    
+    // Initialiser Firebase Messaging
+    let messaging;
+    try {
+      messaging = firebase.messaging();
+      
+      // Clé publique VAPID générée dans la console Firebase
+      const vapidKey = "BK7R1KrKszxazAOe9PgHWgnFoUhW2niUY1e_ToFfTGH4dCI4Fw2zb7uxUAgV8nVhEx6GH8Ze28hfXMXJTMEZP7I";
+      
+      // Vérifier si le service worker est enregistré
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        console.log('Service Workers enregistrés:', registrations.length);
+        registrations.forEach(reg => {
+          console.log('SW scope:', reg.scope);
+        });
+      });
+      
+      // Enregistrer manuellement le service worker si nécessaire
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then(registration => {
+          console.log('Service Worker enregistré avec succès:', registration.scope);
+        })
+        .catch(err => {
+          console.error('Erreur lors de l\'enregistrement du Service Worker:', err);
+        });
+      
+      // Demander la permission pour les notifications
+      if (Notification.permission !== 'granted') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            console.log('Notification permission granted.');
+            getToken();
+          } else {
+            console.log('Notification permission denied.');
+            document.getElementById('device-token').textContent = 'Vous devez autoriser les notifications pour utiliser cette page.';
+          }
+        });
+      } else {
+        getToken();
+      }
+      
+      // Récupérer le token FCM
+      function getToken() {
+        messaging.getToken({vapidKey: vapidKey}).then((currentToken) => {
+          if (currentToken) {
+            console.log('FCM Token:', currentToken);
+            // Afficher le token dans l'interface
+            document.getElementById('device-token').textContent = currentToken;
+            
+            // Enregistrer ce token dans la base de données
+            saveTokenToDatabase(currentToken);
+          } else {
+            console.log('No registration token available. Request permission to generate one.');
+            document.getElementById('device-token').textContent = 'Impossible de générer un token. Vérifiez les autorisations de notification.';
+          }
+        }).catch((err) => {
+          console.log('An error occurred while retrieving token. ', err);
+          document.getElementById('device-token').textContent = 'Erreur lors de la récupération du token: ' + err.message;
+        });
+      }
+      
+      // Enregistrer le token dans la base de données
+      function saveTokenToDatabase(token) {
+        // Vérifier si ce token existe déjà
+        adminTokensRef.orderByChild('token').equalTo(token).once('value', snapshot => {
+          if (!snapshot.exists()) {
+            // Le token n'existe pas, l'ajouter
+            const newTokenRef = adminTokensRef.push();
+            newTokenRef.set({
+              token: token,
+              createdAt: firebase.database.ServerValue.TIMESTAMP,
+              platform: navigator.platform,
+              userAgent: navigator.userAgent
+            }).then(() => {
+              console.log('Admin token saved to database');
+            }).catch(error => {
+              console.error('Error saving admin token to database:', error);
+            });
+          } else {
+            console.log('Token already exists in database');
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'initialisation de Firebase Messaging:", error);
+      document.getElementById('device-token').textContent = 'Erreur: ' + error.message;
+    }
+    
+    // Gérer la soumission du formulaire
+    document.getElementById('notification-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const title = document.getElementById('notification-title').value.trim();
+      const body = document.getElementById('notification-body').value.trim();
+      const token = document.getElementById('device-token').textContent.trim();
+      
+      if (!token || token.includes('Erreur') || token.includes('Impossible') || token.includes('Chargement')) {
+        alert('Aucun token valide n\'est disponible. Veuillez autoriser les notifications et recharger la page.');
+        return;
+      }
+      
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = 'Envoi de la notification de test...';
+      resultDiv.className = 'result';
+      resultDiv.style.display = 'block';
+      
+      // Envoyer une notification de test via la base de données Firebase
+      // Cette méthode est plus simple que d'utiliser l'API FCM directement
+      const testNotificationRef = database.ref('testNotifications').push();
+      testNotificationRef.set({
+        token: token,
+        notification: {
+          title: title,
+          body: body
+        },
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      }).then(() => {
+        resultDiv.innerHTML = 'Notification de test envoyée avec succès !\n\nVérifiez votre appareil pour voir si vous recevez la notification.';
+        resultDiv.className = 'result success';
+        
+        // Créer une notification locale pour tester
+        if (Notification.permission === 'granted') {
+          new Notification(title, {
+            body: body,
+            icon: '/favicon.ico'
+          });
+        }
+      }).catch(error => {
+        resultDiv.innerHTML = 'Erreur lors de l\'envoi de la notification de test:\n' + error.message;
+        resultDiv.className = 'result error';
+      });
+    });
+  </script>
+</body>
+</html>
