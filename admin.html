@@ -578,8 +578,11 @@
       if (!messaging) return;
       
       try {
-        // Récupérer le token FCM
-        messaging.getToken().then((currentToken) => {
+        // Clé publique VAPID générée dans la console Firebase
+        const vapidKey = "BK7R1KrKszxazAOe9PgHWgnFoUhW2niUY1e_ToFfTGH4dCI4Fw2zb7uxUAgV8nVhEx6GH8Ze28hfXMXJTMEZP7I";
+        
+        // Récupérer le token FCM avec la clé VAPID
+        messaging.getToken({vapidKey: vapidKey}).then((currentToken) => {
           if (currentToken) {
             console.log('FCM Token:', currentToken);
             // Afficher le token dans l'interface
