@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CLCH - Claquettes Chaussettes</title>
+  <link rel="manifest" href="manifest.json">
   <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="fonts/fonts.css">
@@ -14,6 +15,8 @@
   <!-- Firebase pour les notifications -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics-compat.js"></script>
   <style>
     html {
       scroll-behavior: smooth;
@@ -1953,32 +1956,134 @@
     
     // Initialisation de Firebase pour les notifications
     function initFirebase() {
-      // Configuration de Firebase (à remplacer par vos propres identifiants)
+      // Configuration de Firebase avec vos identifiants
       const firebaseConfig = {
-        apiKey: "AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        authDomain: "clch-app.firebaseapp.com",
-        projectId: "clch-app",
-        storageBucket: "clch-app.appspot.com",
-        messagingSenderId: "123456789012",
-        appId: "1:123456789012:web:abcdef1234567890abcdef"
+        apiKey: "AIzaSyDDTsKpifjFMSSJrn20Xc3q8szf27F2ZP0",
+        authDomain: "clch-3a8f4.firebaseapp.com",
+        databaseURL: "https://clch-3a8f4-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "clch-3a8f4",
+        storageBucket: "clch-3a8f4.firebasestorage.app",
+        messagingSenderId: "258957198457",
+        appId: "1:258957198457:web:2998d1c0f6ba295f3080a8",
+        measurementId: "G-NWT4D2D1ER"
       };
       
-      // Initialiser Firebase (commenté pour la démo)
-      // firebase.initializeApp(firebaseConfig);
+      // Initialiser Firebase
+      firebase.initializeApp(firebaseConfig);
+      
+      // Demander la permission pour les notifications
+      requestNotificationPermission();
+      
+      // Initialiser Firebase Messaging
+      initMessaging();
+    }
+    
+    // Fonction pour demander la permission des notifications
+    function requestNotificationPermission() {
+      if ('Notification' in window) {
+        if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              console.log('Notification permission granted.');
+              // Vous pouvez initialiser votre service worker ici si nécessaire
+            }
+          });
+        }
+      }
+    }
+    
+    // Initialiser Firebase Messaging
+    function initMessaging() {
+      try {
+        const messaging = firebase.messaging();
+        
+        // Récupérer le token FCM
+        messaging.getToken().then((currentToken) => {
+          if (currentToken) {
+            console.log('FCM Token:', currentToken);
+            // Envoyer ce token à votre serveur pour enregistrer cet appareil
+            saveTokenToDatabase(currentToken);
+          } else {
+            console.log('No registration token available. Request permission to generate one.');
+            requestNotificationPermission();
+          }
+        }).catch((err) => {
+          console.log('An error occurred while retrieving token. ', err);
+        });
+        
+        // Écouter les messages en premier plan
+        messaging.onMessage((payload) => {
+          console.log('Message received in foreground:', payload);
+          // Afficher une notification personnalisée
+          const notificationTitle = payload.notification.title;
+          const notificationOptions = {
+            body: payload.notification.body,
+            icon: '/favicon.ico'
+          };
+          
+          new Notification(notificationTitle, notificationOptions);
+        });
+      } catch (error) {
+        console.error("Erreur lors de l'initialisation de Firebase Messaging:", error);
+      }
+    }
+    
+    // Enregistrer le token dans la base de données Firebase
+    function saveTokenToDatabase(token) {
+      // Utiliser Firebase Realtime Database pour stocker le token
+      const database = firebase.database();
+      const tokenRef = database.ref('fcmTokens');
+      
+      // Générer un ID unique pour ce token
+      const newTokenRef = tokenRef.push();
+      
+      // Enregistrer le token avec un timestamp
+      newTokenRef.set({
+        token: token,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        platform: navigator.platform,
+        userAgent: navigator.userAgent
+      }).then(() => {
+        console.log('Token saved to database');
+      }).catch(error => {
+        console.error('Error saving token to database:', error);
+      });
     }
     
     // Fonction pour envoyer une notification au propriétaire du site
     function sendNotificationToOwner(fileName, userAddress) {
-      // Dans une implémentation réelle, cette fonction enverrait une notification
-      // au propriétaire du site via Firebase Cloud Messaging
-      console.log(`Notification: Nouvelle photo "${fileName}" envoyée par ${userAddress}`);
-      
-      // Simuler l'envoi d'une notification push
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Nouvelle photo CLCH', {
-          body: `Une nouvelle photo a été envoyée par ${userAddress.substring(0, 6)}...`,
-          icon: '/favicon.ico'
+      // Utiliser Firebase Realtime Database pour enregistrer la nouvelle photo
+      try {
+        const database = firebase.database();
+        const photosRef = database.ref('pendingPhotos');
+        
+        // Créer une nouvelle entrée pour la photo en attente
+        const newPhotoRef = photosRef.push();
+        
+        // Enregistrer les informations de la photo
+        newPhotoRef.set({
+          fileName: fileName,
+          userAddress: userAddress,
+          timestamp: firebase.database.ServerValue.TIMESTAMP,
+          status: 'pending'
+        }).then(() => {
+          console.log('Photo information saved to database for approval');
+          
+          // Envoyer une notification locale si possible
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Nouvelle photo CLCH', {
+              body: `Une nouvelle photo a été envoyée par ${typeof userAddress === 'string' ? userAddress.substring(0, 6) + '...' : userAddress}`,
+              icon: '/favicon.ico'
+            });
+          }
+        }).catch(error => {
+          console.error('Error saving photo information to database:', error);
         });
+      } catch (error) {
+        console.error('Error sending notification to owner:', error);
+        
+        // Fallback pour la démo
+        console.log(`Notification: Nouvelle photo "${fileName}" envoyée par ${userAddress}`);
       }
     }
   </script>
