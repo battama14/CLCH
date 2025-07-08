@@ -31,32 +31,20 @@ messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
   // Personnaliser la notification
-  const notificationTitle = payload.notification.title || 'Nouvelle notification';
+  const notificationTitle = payload.notification?.title || 'CLCH Notification';
   const notificationOptions = {
-    body: payload.notification.body || 'Vous avez reçu une nouvelle notification',
+    body: payload.notification?.body || 'Nouvelle activité sur CLCH',
     icon: '/favicon.ico',
     badge: '/favicon.ico',
     vibrate: [200, 100, 200],
     tag: 'new-photo-notification',
-    data: payload.data
-  };
-
-  // Afficher la notification
-  return self.registration.showNotification(notificationTitle, notificationOptions);
-  
-  // Personnaliser la notification
-  const notificationTitle = payload.notification.title || 'CLCH Notification';
-  const notificationOptions = {
-    body: payload.notification.body || 'Nouvelle activité sur CLCH',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
+    data: payload.data,
     // Vous pouvez ajouter d'autres options comme:
-    // image: payload.notification.image,
-    // data: payload.data,
-    // actions: [
-    //   { action: 'view', title: 'Voir' },
-    //   { action: 'close', title: 'Fermer' }
-    // ]
+    // image: payload.notification?.image,
+    actions: [
+      { action: 'view', title: 'Voir' },
+      { action: 'close', title: 'Fermer' }
+    ]
   };
 
   // Afficher la notification
