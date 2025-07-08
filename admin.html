@@ -408,30 +408,45 @@
     // Initialiser les notifications
     function initNotifications() {
       try {
-        // Initialiser Firebase Messaging
-        messaging = firebase.messaging();
-        
-        // Demander la permission pour les notifications
-        const notificationToggle = document.getElementById('notification-toggle');
-        
-        // Vérifier si les notifications sont déjà autorisées
-        if (Notification.permission === 'granted') {
-          notificationToggle.checked = true;
-          initMessaging();
-        }
-        
-        // Gérer le changement d'état du toggle
-        notificationToggle.addEventListener('change', function() {
-          if (this.checked) {
-            requestNotificationPermission();
-          } else {
-            // Désactiver les notifications
-            console.log('Notifications désactivées');
-            document.getElementById('device-token').style.display = 'none';
+        // Vérifier si Firebase Messaging est disponible
+        if (typeof firebase !== 'undefined' && firebase.messaging) {
+          // Initialiser Firebase Messaging
+          messaging = firebase.messaging();
+          
+          // Demander la permission pour les notifications
+          const notificationToggle = document.getElementById('notification-toggle');
+          
+          // Vérifier si les notifications sont déjà autorisées
+          if (Notification.permission === 'granted') {
+            notificationToggle.checked = true;
+            initMessaging();
           }
-        });
+          
+          // Gérer le changement d'état du toggle
+          notificationToggle.addEventListener('change', function() {
+            if (this.checked) {
+              requestNotificationPermission();
+            } else {
+              // Désactiver les notifications
+              console.log('Notifications désactivées');
+              document.getElementById('device-token').style.display = 'none';
+            }
+          });
+        } else {
+          console.log("Firebase Messaging n'est pas disponible dans ce navigateur");
+          // Masquer ou désactiver les éléments liés aux notifications
+          const notificationSettings = document.querySelector('.notification-settings');
+          if (notificationSettings) {
+            notificationSettings.innerHTML = '<h2>Notifications</h2><p>Les notifications ne sont pas disponibles dans ce navigateur.</p>';
+          }
+        }
       } catch (error) {
         console.error("Erreur lors de l'initialisation de Firebase Messaging:", error);
+        // Afficher un message d'erreur à l'utilisateur
+        const notificationSettings = document.querySelector('.notification-settings');
+        if (notificationSettings) {
+          notificationSettings.innerHTML = '<h2>Notifications</h2><p>Une erreur est survenue lors de l\'initialisation des notifications.</p>';
+        }
       }
     }
     
@@ -458,59 +473,89 @@
     
     // Vérifier les identifiants administrateur
     function checkAdminCredentials(username, password) {
-      // Vérifier d'abord dans la base de données Firebase
-      adminUsersRef.once('value')
-        .then(snapshot => {
-          let isAuthenticated = false;
-          
-          if (snapshot.exists()) {
-            // Parcourir les utilisateurs admin dans la base de données
-            snapshot.forEach(childSnapshot => {
-              const adminUser = childSnapshot.val();
-              
-              if (adminUser.username === username && adminUser.password === password) {
-                isAuthenticated = true;
-                return true; // Sortir de la boucle forEach
+      // Simplifier la vérification pour éviter les problèmes de connexion à Firebase
+      // Vérifier directement avec les identifiants par défaut
+      if (username === DEFAULT_ADMIN.username && password === DEFAULT_ADMIN.password) {
+        // Authentification réussie
+        console.log('Authentification réussie avec les identifiants par défaut');
+        
+        // Stocker les informations d'authentification
+        localStorage.setItem('clch_admin_username', username);
+        localStorage.setItem('clch_admin_auth_time', new Date().getTime().toString());
+        
+        // Afficher le contenu administrateur
+        showAdminContent();
+        
+        // Réinitialiser le formulaire
+        adminLoginForm.reset();
+        loginError.textContent = '';
+        
+        // Essayer d'enregistrer l'utilisateur dans la base de données (mais ne pas bloquer l'authentification)
+        try {
+          adminUsersRef.once('value')
+            .then(snapshot => {
+              if (!snapshot.exists()) {
+                // Si aucun utilisateur admin n'existe dans la base de données, créer l'utilisateur par défaut
+                adminUsersRef.push(DEFAULT_ADMIN)
+                  .then(() => {
+                    console.log('Utilisateur admin par défaut créé');
+                  })
+                  .catch(error => {
+                    console.error('Erreur lors de la création de l\'utilisateur admin par défaut:', error);
+                  });
               }
+            })
+            .catch(error => {
+              console.error('Erreur lors de la vérification des utilisateurs admin:', error);
             });
-          } else {
-            // Si aucun utilisateur admin n'existe dans la base de données,
-            // créer l'utilisateur par défaut
-            adminUsersRef.push(DEFAULT_ADMIN)
-              .then(() => {
-                console.log('Utilisateur admin par défaut créé');
-              })
-              .catch(error => {
-                console.error('Erreur lors de la création de l\'utilisateur admin par défaut:', error);
-              });
-          }
-          
-          // Si l'authentification a échoué avec les utilisateurs de la base de données,
-          // vérifier avec les identifiants par défaut
-          if (!isAuthenticated && username === DEFAULT_ADMIN.username && password === DEFAULT_ADMIN.password) {
-            isAuthenticated = true;
-          }
-          
-          if (isAuthenticated) {
-            // Stocker les informations d'authentification
-            localStorage.setItem('clch_admin_username', username);
-            localStorage.setItem('clch_admin_auth_time', new Date().getTime().toString());
-            
-            // Afficher le contenu administrateur
-            showAdminContent();
-            
-            // Réinitialiser le formulaire
-            adminLoginForm.reset();
-            loginError.textContent = '';
-          } else {
-            // Afficher un message d'erreur
-            loginError.textContent = 'Identifiants incorrects. Veuillez réessayer.';
-          }
-        })
-        .catch(error => {
-          console.error('Erreur lors de la vérification des identifiants:', error);
-          loginError.textContent = 'Une erreur est survenue. Veuillez réessayer.';
-        });
+        } catch (error) {
+          console.error('Erreur lors de l\'accès à la base de données:', error);
+        }
+      } else {
+        // Essayer de vérifier dans la base de données Firebase
+        try {
+          adminUsersRef.once('value')
+            .then(snapshot => {
+              let isAuthenticated = false;
+              
+              if (snapshot.exists()) {
+                // Parcourir les utilisateurs admin dans la base de données
+                snapshot.forEach(childSnapshot => {
+                  const adminUser = childSnapshot.val();
+                  
+                  if (adminUser.username === username && adminUser.password === password) {
+                    isAuthenticated = true;
+                    return true; // Sortir de la boucle forEach
+                  }
+                });
+              }
+              
+              if (isAuthenticated) {
+                // Stocker les informations d'authentification
+                localStorage.setItem('clch_admin_username', username);
+                localStorage.setItem('clch_admin_auth_time', new Date().getTime().toString());
+                
+                // Afficher le contenu administrateur
+                showAdminContent();
+                
+                // Réinitialiser le formulaire
+                adminLoginForm.reset();
+                loginError.textContent = '';
+              } else {
+                // Afficher un message d'erreur
+                loginError.textContent = 'Identifiants incorrects. Veuillez réessayer.';
+              }
+            })
+            .catch(error => {
+              console.error('Erreur lors de la vérification des identifiants:', error);
+              // En cas d'erreur, afficher un message plus précis
+              loginError.textContent = 'Erreur de connexion à la base de données. Veuillez réessayer.';
+            });
+        } catch (error) {
+          console.error('Erreur lors de l\'accès à la base de données:', error);
+          loginError.textContent = 'Erreur de connexion à la base de données. Veuillez réessayer.';
+        }
+      }
     }
     
     // Demander la permission pour les notifications
@@ -532,39 +577,53 @@
     function initMessaging() {
       if (!messaging) return;
       
-      // Récupérer le token FCM
-      messaging.getToken().then((currentToken) => {
-        if (currentToken) {
-          console.log('FCM Token:', currentToken);
-          // Afficher le token dans l'interface
-          const deviceToken = document.getElementById('device-token');
-          deviceToken.textContent = currentToken;
-          deviceToken.style.display = 'block';
-          
-          // Enregistrer ce token dans la base de données
-          saveTokenToDatabase(currentToken);
-        } else {
-          console.log('No registration token available. Request permission to generate one.');
-        }
-      }).catch((err) => {
-        console.log('An error occurred while retrieving token. ', err);
-      });
-      
-      // Écouter les messages en premier plan
-      messaging.onMessage((payload) => {
-        console.log('Message received in foreground:', payload);
-        // Afficher une notification personnalisée
-        const notificationTitle = payload.notification.title;
-        const notificationOptions = {
-          body: payload.notification.body,
-          icon: '/favicon.ico'
-        };
+      try {
+        // Récupérer le token FCM
+        messaging.getToken().then((currentToken) => {
+          if (currentToken) {
+            console.log('FCM Token:', currentToken);
+            // Afficher le token dans l'interface
+            const deviceToken = document.getElementById('device-token');
+            if (deviceToken) {
+              deviceToken.textContent = currentToken;
+              deviceToken.style.display = 'block';
+            }
+            
+            // Enregistrer ce token dans la base de données
+            try {
+              saveTokenToDatabase(currentToken);
+            } catch (error) {
+              console.error('Erreur lors de l\'enregistrement du token:', error);
+            }
+          } else {
+            console.log('No registration token available. Request permission to generate one.');
+          }
+        }).catch((err) => {
+          console.log('An error occurred while retrieving token. ', err);
+        });
         
-        new Notification(notificationTitle, notificationOptions);
-        
-        // Rafraîchir la liste des photos en attente
-        loadPendingPhotos();
-      });
+        // Écouter les messages en premier plan
+        messaging.onMessage((payload) => {
+          console.log('Message received in foreground:', payload);
+          try {
+            // Afficher une notification personnalisée
+            const notificationTitle = payload.notification.title || 'Nouvelle notification';
+            const notificationOptions = {
+              body: payload.notification.body || 'Vous avez reçu une nouvelle notification',
+              icon: '/favicon.ico'
+            };
+            
+            new Notification(notificationTitle, notificationOptions);
+            
+            // Rafraîchir la liste des photos en attente
+            loadPendingPhotos();
+          } catch (error) {
+            console.error('Erreur lors de l\'affichage de la notification:', error);
+          }
+        });
+      } catch (error) {
+        console.error('Erreur dans initMessaging:', error);
+      }
     }
     
     // Enregistrer le token dans la base de données
