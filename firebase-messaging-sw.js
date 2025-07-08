@@ -1,8 +1,12 @@
 // Firebase Service Worker pour les notifications en arrière-plan
+// Version: 1.1 (mise à jour pour Netlify)
 
 // Importation des scripts Firebase nécessaires
 importScripts('https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js');
+
+// Log pour vérifier que le service worker est bien chargé
+console.log('Firebase Messaging Service Worker Loaded on Netlify');
 
 // Configuration Firebase
 const firebaseConfig = {
