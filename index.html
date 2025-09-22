@@ -82,6 +82,25 @@
                 </div>
             </div>
 
+            <!-- Calendrier de Trading -->
+            <div class="calendar-section">
+                <h2>📅 Calendrier de Trading</h2>
+                <div class="calendar-wrapper">
+                    <div class="calendar-controls">
+                        <button id="prevMonth" class="btn-secondary">◀</button>
+                        <div id="monthLabel" class="month-label">Mois</div>
+                        <button id="nextMonth" class="btn-secondary">▶</button>
+                    </div>
+                    <div class="calendar-grid-container">
+                        <div class="weekdays">
+                            <div>Dim</div><div>Lun</div><div>Mar</div><div>Mer</div><div>Jeu</div><div>Ven</div><div>Sam</div>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid"></div>
+                    </div>
+                    <div class="calendar-summary" id="calendarSummary"></div>
+                </div>
+            </div>
+
             <div class="trades-history">
                 <h2>Historique des Trades</h2>
                 <table id="tradesTable">

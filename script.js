@@ -160,6 +160,7 @@ class TradingDashboard {
         this.renderTradesTable();
         this.initCharts();
         this.updateCharts();
+        this.initCalendar();
     }
 
     setupEventListeners() {
@@ -433,6 +434,7 @@ class TradingDashboard {
         this.updateStats();
         this.renderTradesTable();
         this.updateCharts();
+        this.updateCalendar();
     }
 
     simulateTradeClose(tradeIndex) {
@@ -458,6 +460,7 @@ class TradingDashboard {
         this.updateStats();
         this.renderTradesTable();
         this.updateCharts();
+        this.updateCalendar();
     }
 
     calculatePnL(trade) {
@@ -1641,6 +1644,7 @@ class TradingDashboard {
         this.updateStats();
         this.renderTradesTable();
         this.updateCharts();
+        this.updateCalendar();
     }
 
     updateStats() {
@@ -1697,6 +1701,7 @@ class TradingDashboard {
         this.updateStats();
         this.renderTradesTable();
         this.updateCharts();
+        this.updateCalendar();
     }
 
     initCharts() {
@@ -1906,6 +1911,202 @@ class TradingDashboard {
         }
         
         analysisContainer.innerHTML = analysisHTML;
+    }
+
+    // Calendrier de Trading
+    initCalendar() {
+        this.calendarDate = new Date();
+        this.setupCalendarListeners();
+        this.renderCalendar();
+    }
+
+    setupCalendarListeners() {
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            this.calendarDate.setMonth(this.calendarDate.getMonth() - 1);
+            this.renderCalendar();
+        });
+        
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            this.calendarDate.setMonth(this.calendarDate.getMonth() + 1);
+            this.renderCalendar();
+        });
+    }
+
+    renderCalendar() {
+        const year = this.calendarDate.getFullYear();
+        const month = this.calendarDate.getMonth();
+        
+        document.getElementById('monthLabel').textContent = this.calendarDate.toLocaleDateString('fr-FR', {
+            month: 'long',
+            year: 'numeric'
+        });
+        
+        const firstDay = new Date(year, month, 1);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+        
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+        
+        for (let i = 0; i < 42; i++) {
+            const cellDate = new Date(startDate);
+            cellDate.setDate(startDate.getDate() + i);
+            
+            const cell = this.createCalendarCell(cellDate, month);
+            grid.appendChild(cell);
+        }
+        
+        this.updateCalendarSummary();
+    }
+
+    createCalendarCell(date, currentMonth) {
+        const cell = document.createElement('div');
+        cell.className = 'calendar-cell';
+        
+        if (date.getMonth() !== currentMonth) {
+            cell.classList.add('other-month');
+        }
+        
+        const dateEl = document.createElement('div');
+        dateEl.className = 'cell-date';
+        dateEl.textContent = date.getDate();
+        cell.appendChild(dateEl);
+        
+        const dateStr = date.toISOString().split('T')[0];
+        const dayTrades = this.trades.filter(trade => 
+            trade.status === 'closed' && trade.date === dateStr
+        );
+        
+        if (dayTrades.length > 0) {
+            const totalPnL = dayTrades.reduce((sum, trade) => sum + parseFloat(trade.pnl || 0), 0);
+            
+            const pnlEl = document.createElement('div');
+            pnlEl.className = 'cell-pnl';
+            pnlEl.textContent = (totalPnL >= 0 ? '+$' : '-$') + Math.abs(totalPnL).toFixed(0);
+            pnlEl.style.color = totalPnL >= 0 ? '#4ecdc4' : '#ff6b6b';
+            cell.appendChild(pnlEl);
+            
+            const countEl = document.createElement('div');
+            countEl.className = 'cell-count';
+            countEl.textContent = `${dayTrades.length} trade${dayTrades.length > 1 ? 's' : ''}`;
+            cell.appendChild(countEl);
+            
+            if (totalPnL > 0) {
+                cell.classList.add('profit');
+            } else if (totalPnL < 0) {
+                cell.classList.add('loss');
+            }
+        }
+        
+        cell.addEventListener('click', () => {
+            this.showDayDetails(dateStr, dayTrades);
+        });
+        
+        return cell;
+    }
+
+    showDayDetails(dateStr, trades) {
+        if (trades.length === 0) {
+            alert(`Aucun trade le ${dateStr}`);
+            return;
+        }
+        
+        const totalPnL = trades.reduce((sum, trade) => sum + parseFloat(trade.pnl || 0), 0);
+        
+        let detailsHTML = `
+            <h2>📅 Détails du ${new Date(dateStr).toLocaleDateString('fr-FR')}</h2>
+            <div class="education-content">
+                <h4>📊 Résumé de la journée :</h4>
+                <p><strong>Nombre de trades :</strong> ${trades.length}</p>
+                <p><strong>Résultat total :</strong> <span style="color: ${totalPnL >= 0 ? '#4ecdc4' : '#ff6b6b'}">${totalPnL >= 0 ? '+$' : '-$'}${Math.abs(totalPnL).toFixed(2)}</span></p>
+            </div>
+            <div class="trade-form">
+        `;
+        
+        trades.forEach((trade) => {
+            const pnl = parseFloat(trade.pnl || 0);
+            detailsHTML += `
+                <div style="background: rgba(30,30,30,0.6); padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${trade.currency}</strong>
+                            <div style="font-size: 0.9em; opacity: 0.8;">Entrée: ${trade.entryPoint} | SL: ${trade.stopLoss} | TP: ${trade.takeProfit}</div>
+                            <div style="font-size: 0.8em; opacity: 0.6;">Lot: ${trade.lotSize} | Résultat: ${trade.result}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.2em; font-weight: bold; color: ${pnl >= 0 ? '#4ecdc4' : '#ff6b6b'};">
+                                ${pnl >= 0 ? '+$' : '-$'}${Math.abs(pnl).toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        detailsHTML += `
+                <button class="btn-submit" onclick="dashboard.closeModal()">Fermer</button>
+            </div>
+        `;
+        
+        document.getElementById('modalContent').innerHTML = detailsHTML;
+        this.showModal();
+    }
+
+    updateCalendar() {
+        this.renderCalendar();
+    }
+
+    updateCalendarSummary() {
+        const year = this.calendarDate.getFullYear();
+        const month = this.calendarDate.getMonth();
+        
+        const monthTrades = this.trades.filter(trade => {
+            if (trade.status !== 'closed') return false;
+            const tradeDate = new Date(trade.date);
+            return tradeDate.getFullYear() === year && tradeDate.getMonth() === month;
+        });
+        
+        const totalTrades = monthTrades.length;
+        const winTrades = monthTrades.filter(t => parseFloat(t.pnl || 0) > 0).length;
+        const totalPnL = monthTrades.reduce((sum, t) => sum + parseFloat(t.pnl || 0), 0);
+        const winrate = totalTrades > 0 ? ((winTrades / totalTrades) * 100).toFixed(1) : 0;
+        
+        const dailyPnL = {};
+        monthTrades.forEach(trade => {
+            const date = trade.date;
+            dailyPnL[date] = (dailyPnL[date] || 0) + parseFloat(trade.pnl || 0);
+        });
+        
+        const dailyValues = Object.values(dailyPnL);
+        const bestDay = dailyValues.length > 0 ? Math.max(...dailyValues) : 0;
+        // Ne considérer que les pertes réelles pour le pire jour
+        const lossValues = dailyValues.filter(value => value < 0);
+        const worstDay = lossValues.length > 0 ? Math.min(...lossValues) : 0;
+        
+        const summaryHTML = `
+            <div class="summary-card">
+                <h4>Trades du Mois</h4>
+                <div class="value">${totalTrades}</div>
+            </div>
+            <div class="summary-card ${totalPnL >= 0 ? 'profit' : 'loss'}">
+                <h4>P&L Total</h4>
+                <div class="value">${totalPnL >= 0 ? '+$' : '-$'}${Math.abs(totalPnL).toFixed(0)}</div>
+            </div>
+            <div class="summary-card">
+                <h4>Winrate</h4>
+                <div class="value">${winrate}%</div>
+            </div>
+            <div class="summary-card profit">
+                <h4>Meilleur Jour</h4>
+                <div class="value">+$${Math.abs(bestDay).toFixed(0)}</div>
+            </div>
+            <div class="summary-card ${worstDay < 0 ? 'loss' : ''}">
+                <h4>Pire Jour</h4>
+                <div class="value">${worstDay < 0 ? '-$' + Math.abs(worstDay).toFixed(0) : 'Aucune perte'}</div>
+            </div>
+        `;
+        
+        document.getElementById('calendarSummary').innerHTML = summaryHTML;
     }
 
     saveToStorage() {
