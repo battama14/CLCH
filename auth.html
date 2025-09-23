@@ -186,50 +186,38 @@
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        // Utilisateurs autorisés
+        let USERS = JSON.parse(localStorage.getItem('users')) || {
+            "admin": "TradingPro2024!",
+            "demo_admin": "hello",
+            "demo_trader": "test",
+            "demo_user": "password",
+            "guest": "Guest789!"
+        };
+        
+        // Sauvegarder les utilisateurs par défaut
+        if (!localStorage.getItem('users')) {
+            localStorage.setItem('users', JSON.stringify(USERS));
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const username = document.getElementById('username').value.trim();
+            const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('error');
-            const loginBtn = document.querySelector('.login-btn');
             
-            if (!username || !password) {
-                showError('Veuillez remplir tous les champs');
-                return;
-            }
+            // Recharger les utilisateurs depuis localStorage
+            USERS = JSON.parse(localStorage.getItem('users')) || USERS;
             
-            // Afficher le chargement
-            loginBtn.textContent = '🔄 Connexion...';
-            loginBtn.disabled = true;
-            errorDiv.style.display = 'none';
-            
-            try {
-                const response = await fetch('/api/auth', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    sessionStorage.setItem('authenticated', 'true');
-                    sessionStorage.setItem('currentUser', data.user);
-                    sessionStorage.setItem('authToken', data.token);
-                    window.location.href = 'index.html';
-                } else {
-                    showError(data.error || 'Erreur de connexion');
-                    document.getElementById('password').value = '';
-                }
-            } catch (error) {
-                showError('Erreur de connexion au serveur');
-                console.error('Auth error:', error);
-            } finally {
-                loginBtn.textContent = 'Se connecter';
-                loginBtn.disabled = false;
+            if (USERS[username] && USERS[username] === password) {
+                sessionStorage.setItem('authenticated', 'true');
+                sessionStorage.setItem('currentUser', username);
+                window.location.href = 'index.html';
+            } else {
+                showError('Nom d\'utilisateur ou mot de passe incorrect');
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
             }
         });
         
@@ -246,7 +234,7 @@
             
             setTimeout(() => {
                 errorDiv.style.display = 'none';
-            }, 5000);
+            }, 3000);
         }
         
         // Animation de secousse pour l'erreur

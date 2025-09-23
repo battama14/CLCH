@@ -1074,16 +1074,24 @@ class TradingDashboard {
         alert('Graphique détaillé disponible dans la version complète');
     }
 
-    async showUserManagement() {
+    showUserManagement() {
         const modalContent = document.getElementById('modalContent');
         if (!modalContent) return;
+        
+        const users = JSON.parse(localStorage.getItem('users')) || {};
+        const usersList = Object.entries(users).map(([user, pass]) => 
+            `<div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(40,40,40,0.6); border-radius: 5px; margin: 5px 0;">
+                <span><strong>${user}</strong></span>
+                <button class="btn-small" style="background: #ff6b6b;" onclick="dashboard.deleteUser('${user}')">Supprimer</button>
+            </div>`
+        ).join('');
         
         modalContent.innerHTML = `
             <h2>👥 Gestion des Utilisateurs</h2>
             
             <div class="education-content">
-                <h4>🔒 Sécurité Netlify :</h4>
-                <p>Les utilisateurs sont gérés via les variables d'environnement Netlify pour une sécurité maximale.</p>
+                <h4>👥 Utilisateurs actuels :</h4>
+                ${usersList}
             </div>
             
             <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px;">
@@ -1096,12 +1104,7 @@ class TradingDashboard {
                     <label>Mot de passe:</label>
                     <input type="password" id="newPassword" placeholder="MotDePasseSécurisé123!">
                 </div>
-                <button class="btn-submit" onclick="dashboard.generateUserHash()">Générer Hash Sécurisé</button>
-            </div>
-            
-            <div id="hashResult" style="display: none; margin-top: 20px; padding: 15px; background: rgba(0,212,255,0.1); border-radius: 8px;">
-                <h4 style="color: #00d4ff;">🔑 Hash généré :</h4>
-                <div id="hashInstructions"></div>
+                <button class="btn-submit" onclick="dashboard.addUser()">Ajouter Utilisateur</button>
             </div>
             
             <div style="text-align: center; margin-top: 20px;">
@@ -1111,7 +1114,7 @@ class TradingDashboard {
         this.showModal();
     }
 
-    async generateUserHash() {
+    addUser() {
         const username = document.getElementById('newUsername')?.value.trim();
         const password = document.getElementById('newPassword')?.value;
         
@@ -1120,48 +1123,32 @@ class TradingDashboard {
             return;
         }
         
-        try {
-            const response = await fetch('/api/add-user', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    adminToken: sessionStorage.getItem('authToken'),
-                    newUsername: username,
-                    newPassword: password
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                const resultDiv = document.getElementById('hashResult');
-                const instructionsDiv = document.getElementById('hashInstructions');
-                
-                instructionsDiv.innerHTML = `
-                    <p><strong>Utilisateur :</strong> ${data.username}</p>
-                    <p><strong>Hash :</strong> <code style="background: rgba(0,0,0,0.5); padding: 5px; border-radius: 3px;">${data.hash}</code></p>
-                    <div style="margin-top: 15px; padding: 10px; background: rgba(255,193,7,0.2); border-radius: 5px;">
-                        <strong>⚠️ Instructions :</strong><br>
-                        1. Allez dans Netlify Dashboard > Site settings > Environment variables<br>
-                        2. Ajoutez : <code>${data.username.toUpperCase()}_HASH = ${data.hash}</code><br>
-                        3. Modifiez le fichier auth.js pour inclure ce nouvel utilisateur<br>
-                        4. Redéployez le site
-                    </div>
-                `;
-                
-                resultDiv.style.display = 'block';
-                
-                // Vider les champs
-                document.getElementById('newUsername').value = '';
-                document.getElementById('newPassword').value = '';
-            } else {
-                alert('Erreur : ' + data.error);
-            }
-        } catch (error) {
-            alert('Erreur de connexion au serveur');
-            console.error('Error:', error);
+        const users = JSON.parse(localStorage.getItem('users')) || {};
+        
+        if (users[username]) {
+            alert('Cet utilisateur existe déjà');
+            return;
+        }
+        
+        users[username] = password;
+        localStorage.setItem('users', JSON.stringify(users));
+        
+        alert(`Utilisateur "${username}" ajouté avec succès !`);
+        this.showUserManagement(); // Rafraîchir la liste
+    }
+    
+    deleteUser(username) {
+        if (username === 'admin') {
+            alert('Impossible de supprimer le compte admin principal');
+            return;
+        }
+        
+        if (confirm(`Supprimer l'utilisateur "${username}" ?`)) {
+            const users = JSON.parse(localStorage.getItem('users')) || {};
+            delete users[username];
+            localStorage.setItem('users', JSON.stringify(users));
+            alert(`Utilisateur "${username}" supprimé`);
+            this.showUserManagement(); // Rafraîchir la liste
         }
     }
 
