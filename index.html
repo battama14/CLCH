@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+
 </head>
 <body>
     <script>
@@ -46,6 +49,8 @@
                 </select>
                 <button id="addAccountBtn" onclick="dashboard.addNewAccount()" class="btn-info" style="padding: 5px 10px; margin-left: 10px;">+ Nouveau</button>
                 <button id="deleteAccountBtn" onclick="dashboard.deleteAccount()" class="btn-danger" style="padding: 5px 10px; margin-left: 5px;">🗑️</button>
+                <button id="syncBtn" onclick="dashboard.showCloudSync()" class="btn-warning" style="padding: 5px 10px; margin-left: 5px;">☁️ Sync</button>
+                <div id="syncStatus" style="margin-left: 10px; padding: 5px 10px; border-radius: 5px; font-size: 0.8em; background: rgba(78,205,196,0.2); color: #4ecdc4;">🔄 Auto</div>
             </div>
             <div class="stats-overview">
                 <div class="stat-card">

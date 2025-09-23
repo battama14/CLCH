@@ -9,16 +9,9 @@ class TradingDashboard {
             'compte2': { name: 'Compte Démo', capital: 500 },
             'compte3': { name: 'Compte Swing', capital: 2000 }
         };
+        this.initFirebase();
         
-        if (this.currentUser === 'admin' && !localStorage.getItem('users')) {
-            const defaultUsers = {
-                "admin": "TradingPro2024!",
-                "trader1": "Trader123!",
-                "trader2": "Market456!",
-                "guest": "Guest789!"
-            };
-            localStorage.setItem('users', JSON.stringify(defaultUsers));
-        }
+        this.initFirebaseUsers();
         this.currentStep = 0;
         this.currentTrade = {};
         this.livePrices = {};
@@ -81,11 +74,13 @@ class TradingDashboard {
     init() {
         this.setupEventListeners();
         this.initAccountSelector();
+        this.autoLoadFromCloud();
         this.updateStats();
         this.renderTradesTable();
         this.initCharts();
         this.updateCharts();
         this.initCalendar();
+        this.startAutoSync();
     }
 
     initAccountSelector() {
@@ -216,6 +211,385 @@ class TradingDashboard {
             notification.style.animation = 'slideOutRight 0.3s ease';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
+    }
+
+    initFirebase() {
+        const firebaseConfig = {
+            apiKey: "AIzaSyDDTsKpifjFMSSJrn20Xc3q8szf27F2ZP0",
+            authDomain: "clch-3a8f4.firebaseapp.com",
+            databaseURL: "https://clch-3a8f4-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "clch-3a8f4",
+            storageBucket: "clch-3a8f4.firebasestorage.app",
+            messagingSenderId: "258957198457",
+            appId: "1:258957198457:web:2998d1c0f6ba295f3080a8"
+        };
+        
+        try {
+            firebase.initializeApp(firebaseConfig);
+            this.database = firebase.database();
+            this.cloudEnabled = true;
+            console.log('Firebase initialisé avec succès');
+        } catch (error) {
+            console.log('Erreur Firebase:', error);
+            this.cloudEnabled = false;
+        }
+    }
+
+    async initFirebaseUsers() {
+        if (!this.cloudEnabled) return;
+        
+        try {
+            const snapshot = await this.database.ref('users').once('value');
+            const users = snapshot.val();
+            
+            if (!users && this.currentUser === 'admin') {
+                // Créer les utilisateurs par défaut dans Firebase
+                const defaultUsers = {
+                    "admin": "TradingPro2024!",
+                    "trader1": "Trader123!",
+                    "trader2": "Market456!",
+                    "guest": "Guest789!"
+                };
+                await this.database.ref('users').set(defaultUsers);
+                console.log('Utilisateurs par défaut créés dans Firebase');
+            }
+        } catch (error) {
+            console.log('Erreur init utilisateurs:', error);
+        }
+    }
+
+
+
+    showCloudSync() {
+        const modalContent = document.getElementById('modalContent');
+        if (!modalContent) return;
+        
+        const cloudStatus = this.cloudEnabled ? '✅ Connecté' : '❌ Déconnecté';
+        
+        modalContent.innerHTML = `
+            <h2>☁️ Synchronisation Cloud Firebase</h2>
+            <div class="education-content">
+                <h4>🔌 Statut : ${cloudStatus}</h4>
+                <p><strong>Synchronisation automatique</strong> entre tous vos appareils</p>
+                <p>Vos données sont sécurisées sur Firebase Google</p>
+            </div>
+            
+            <div class="trade-form">
+                <div class="form-group">
+                    <label>Code de synchronisation personnel :</label>
+                    <input type="text" id="syncCode" placeholder="MonCodeSecret123" value="${this.getSyncCode()}">
+                    <small style="color: rgba(255,255,255,0.7); font-size: 0.8em;">Utilisez le même code sur tous vos appareils</small>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn-primary" onclick="dashboard.uploadToFirebase()" style="flex: 1;" ${!this.cloudEnabled ? 'disabled' : ''}>⬆️ Sauvegarder Cloud</button>
+                    <button class="btn-info" onclick="dashboard.downloadFromFirebase()" style="flex: 1;" ${!this.cloudEnabled ? 'disabled' : ''}>⬇️ Télécharger Cloud</button>
+                </div>
+                
+                <hr style="margin: 20px 0; border: 1px solid rgba(255,255,255,0.2);">
+                <h4 style="color: #ffc107; margin-bottom: 10px;">💾 Sauvegarde Locale (Backup)</h4>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-secondary" onclick="dashboard.exportAllData()" style="flex: 1;">📤 Export Fichier</button>
+                    <button class="btn-secondary" onclick="dashboard.importAllData()" style="flex: 1;">📥 Import Fichier</button>
+                </div>
+                
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="dashboard.handleFileImport(event)">
+                
+                <div style="margin-top: 15px; padding: 10px; background: rgba(0,212,255,0.1); border-radius: 5px; border-left: 3px solid #00d4ff;">
+                    <strong>☁️ Cloud :</strong> Synchronisation automatique instantanée<br>
+                    <strong>💾 Fichier :</strong> Sauvegarde manuelle de sécurité
+                </div>
+                
+                <button class="btn-secondary" onclick="dashboard.closeModal()" style="width: 100%; margin-top: 15px;">Fermer</button>
+            </div>
+        `;
+        this.showModal();
+    }
+
+    getSyncCode() {
+        return localStorage.getItem(`syncCode_${this.currentUser}`) || '';
+    }
+
+    exportAllData() {
+        try {
+            const allData = {
+                user: this.currentUser,
+                accounts: this.accounts,
+                currentAccount: this.currentAccount,
+                timestamp: Date.now(),
+                version: '1.0'
+            };
+            
+            // Ajouter toutes les données de tous les comptes
+            Object.keys(this.accounts).forEach(accountKey => {
+                allData[`trades_${accountKey}`] = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${accountKey}`)) || [];
+                allData[`settings_${accountKey}`] = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${accountKey}`)) || {};
+            });
+            
+            const dataStr = JSON.stringify(allData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `trading_data_${this.currentUser}_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            this.showNotification('📤 Données exportées ! Transférez le fichier sur vos autres appareils.');
+            this.closeModal();
+        } catch (error) {
+            alert('Erreur lors de l\'export : ' + error.message);
+        }
+    }
+
+    importAllData() {
+        document.getElementById('importFile').click();
+    }
+
+    handleFileImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                if (!data.accounts || !data.version) {
+                    alert('Fichier invalide ou format non reconnu');
+                    return;
+                }
+                
+                if (confirm('Remplacer toutes vos données actuelles par celles du fichier ?')) {
+                    // Restaurer les comptes
+                    this.accounts = data.accounts;
+                    this.currentAccount = data.currentAccount || Object.keys(this.accounts)[0];
+                    
+                    // Restaurer toutes les données de tous les comptes
+                    Object.keys(this.accounts).forEach(accountKey => {
+                        if (data[`trades_${accountKey}`]) {
+                            localStorage.setItem(`trades_${this.currentUser}_${accountKey}`, JSON.stringify(data[`trades_${accountKey}`]));
+                        }
+                        if (data[`settings_${accountKey}`]) {
+                            localStorage.setItem(`settings_${this.currentUser}_${accountKey}`, JSON.stringify(data[`settings_${accountKey}`]));
+                        }
+                    });
+                    
+                    // Recharger les données actuelles
+                    this.trades = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${this.currentAccount}`)) || [];
+                    this.settings = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${this.currentAccount}`)) || { capital: 1000, riskPerTrade: 2 };
+                    
+                    this.saveToStorage();
+                    
+                    // Mettre à jour l'interface
+                    this.initAccountSelector();
+                    this.updateStats();
+                    this.renderTradesTable();
+                    this.updateCharts();
+                    this.updateCalendar();
+                    
+                    this.showNotification('📥 Données importées avec succès !');
+                    this.closeModal();
+                }
+            } catch (error) {
+                alert('Erreur lors de l\'import : Fichier corrompu ou invalide');
+            }
+        };
+        reader.readAsText(file);
+        
+        // Reset input
+        event.target.value = '';
+    }
+
+    async uploadToFirebase() {
+        if (!this.cloudEnabled) {
+            alert('Firebase non disponible');
+            return;
+        }
+        
+        const syncCode = document.getElementById('syncCode')?.value.trim();
+        if (!syncCode) {
+            alert('Veuillez entrer un code de synchronisation');
+            return;
+        }
+        
+        try {
+            const allData = {
+                user: this.currentUser,
+                accounts: this.accounts,
+                currentAccount: this.currentAccount,
+                timestamp: Date.now(),
+                lastUpdate: new Date().toISOString()
+            };
+            
+            // Ajouter toutes les données de tous les comptes
+            Object.keys(this.accounts).forEach(accountKey => {
+                allData[`trades_${accountKey}`] = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${accountKey}`)) || [];
+                allData[`settings_${accountKey}`] = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${accountKey}`)) || {};
+            });
+            
+            // Sauvegarder dans Firebase
+            await this.database.ref(`trading_data/${syncCode}`).set(allData);
+            
+            localStorage.setItem(`syncCode_${this.currentUser}`, syncCode);
+            this.showNotification('☁️ Données sauvegardées sur Firebase !');
+            this.closeModal();
+        } catch (error) {
+            console.error('Erreur Firebase:', error);
+            alert('Erreur lors de la sauvegarde : ' + error.message);
+        }
+    }
+
+    async downloadFromFirebase() {
+        if (!this.cloudEnabled) {
+            alert('Firebase non disponible');
+            return;
+        }
+        
+        const syncCode = document.getElementById('syncCode')?.value.trim();
+        if (!syncCode) {
+            alert('Veuillez entrer un code de synchronisation');
+            return;
+        }
+        
+        try {
+            const snapshot = await this.database.ref(`trading_data/${syncCode}`).once('value');
+            const data = snapshot.val();
+            
+            if (!data) {
+                alert('Aucune donnée trouvée avec ce code');
+                return;
+            }
+            
+            if (confirm(`Remplacer vos données par celles du cloud ?\nDernière mise à jour : ${data.lastUpdate || 'Inconnue'}`)) {
+                // Restaurer les comptes
+                this.accounts = data.accounts || {};
+                this.currentAccount = data.currentAccount || Object.keys(this.accounts)[0];
+                
+                // Restaurer toutes les données de tous les comptes
+                Object.keys(this.accounts).forEach(accountKey => {
+                    if (data[`trades_${accountKey}`]) {
+                        localStorage.setItem(`trades_${this.currentUser}_${accountKey}`, JSON.stringify(data[`trades_${accountKey}`]));
+                    }
+                    if (data[`settings_${accountKey}`]) {
+                        localStorage.setItem(`settings_${this.currentUser}_${accountKey}`, JSON.stringify(data[`settings_${accountKey}`]));
+                    }
+                });
+                
+                // Recharger les données actuelles
+                this.trades = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${this.currentAccount}`)) || [];
+                this.settings = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${this.currentAccount}`)) || { capital: 1000, riskPerTrade: 2 };
+                
+                localStorage.setItem(`syncCode_${this.currentUser}`, syncCode);
+                this.saveToStorage();
+                
+                // Mettre à jour l'interface
+                this.initAccountSelector();
+                this.updateStats();
+                this.renderTradesTable();
+                this.updateCharts();
+                this.updateCalendar();
+                
+                this.showNotification('☁️ Données restaurées de Firebase !');
+                this.closeModal();
+            }
+        } catch (error) {
+            console.error('Erreur Firebase:', error);
+            alert('Erreur lors du téléchargement : ' + error.message);
+        }
+    }
+
+    async autoLoadFromCloud() {
+        const syncCode = this.getSyncCode();
+        if (!syncCode || !this.cloudEnabled) return;
+        
+        try {
+            const snapshot = await this.database.ref(`trading_data/${syncCode}`).once('value');
+            const data = snapshot.val();
+            
+            if (data && data.timestamp) {
+                const localTimestamp = localStorage.getItem(`lastSync_${this.currentUser}`) || 0;
+                
+                if (data.timestamp > localTimestamp) {
+                    // Données cloud plus récentes
+                    this.accounts = data.accounts || this.accounts;
+                    this.currentAccount = data.currentAccount || this.currentAccount;
+                    
+                    Object.keys(this.accounts).forEach(accountKey => {
+                        if (data[`trades_${accountKey}`]) {
+                            localStorage.setItem(`trades_${this.currentUser}_${accountKey}`, JSON.stringify(data[`trades_${accountKey}`]));
+                        }
+                        if (data[`settings_${accountKey}`]) {
+                            localStorage.setItem(`settings_${this.currentUser}_${accountKey}`, JSON.stringify(data[`settings_${accountKey}`]));
+                        }
+                    });
+                    
+                    this.trades = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${this.currentAccount}`)) || [];
+                    this.settings = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${this.currentAccount}`)) || { capital: 1000, riskPerTrade: 2 };
+                    
+                    localStorage.setItem(`lastSync_${this.currentUser}`, data.timestamp);
+                    this.showNotification('🔄 Données synchronisées automatiquement');
+                }
+            }
+        } catch (error) {
+            console.log('Sync auto échouée:', error);
+        }
+    }
+
+    startAutoSync() {
+        // Synchronisation automatique toutes les 30 secondes
+        setInterval(() => {
+            this.autoSaveToCloud();
+        }, 30000);
+        
+        // Synchronisation avant fermeture de page
+        window.addEventListener('beforeunload', () => {
+            this.autoSaveToCloud();
+        });
+    }
+
+    async autoSaveToCloud() {
+        const syncCode = this.getSyncCode();
+        if (!syncCode || !this.cloudEnabled) return;
+        
+        try {
+            const allData = {
+                user: this.currentUser,
+                accounts: this.accounts,
+                currentAccount: this.currentAccount,
+                timestamp: Date.now(),
+                lastUpdate: new Date().toISOString()
+            };
+            
+            Object.keys(this.accounts).forEach(accountKey => {
+                allData[`trades_${accountKey}`] = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${accountKey}`)) || [];
+                allData[`settings_${accountKey}`] = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${accountKey}`)) || {};
+            });
+            
+            await this.database.ref(`trading_data/${syncCode}`).set(allData);
+            localStorage.setItem(`lastSync_${this.currentUser}`, allData.timestamp);
+            this.updateSyncStatus('✅ Syncé', '#4ecdc4');
+        } catch (error) {
+            console.log('Auto-save échoué:', error);
+            this.updateSyncStatus('❌ Erreur', '#ff6b6b');
+        }
+    }
+
+    updateSyncStatus(text, color) {
+        const statusElement = document.getElementById('syncStatus');
+        if (statusElement) {
+            statusElement.textContent = text;
+            statusElement.style.color = color;
+            statusElement.style.background = `${color}20`;
+            
+            // Retour au statut normal après 3 secondes
+            setTimeout(() => {
+                statusElement.textContent = '🔄 Auto';
+                statusElement.style.color = '#4ecdc4';
+                statusElement.style.background = 'rgba(78,205,196,0.2)';
+            }, 3000);
+        }
     }
 
     setupEventListeners() {
@@ -1210,53 +1584,79 @@ class TradingDashboard {
         localStorage.setItem(`trades_${this.currentUser}_${this.currentAccount}`, JSON.stringify(this.trades));
         localStorage.setItem(`settings_${this.currentUser}_${this.currentAccount}`, JSON.stringify(this.settings));
         localStorage.setItem(`accounts_${this.currentUser}`, JSON.stringify(this.accounts));
+        
+        // Synchronisation automatique après chaque sauvegarde
+        setTimeout(() => this.autoSaveToCloud(), 1000);
     }
 
     showStepChart(stepKey) {
         alert('Graphique détaillé disponible dans la version complète');
     }
 
-    showUserManagement() {
+    async showUserManagement() {
         const modalContent = document.getElementById('modalContent');
         if (!modalContent) return;
         
-        const users = JSON.parse(localStorage.getItem('users')) || {};
-        const usersList = Object.entries(users).map(([user, pass]) => 
-            `<div style="display: flex; justify-content: space-between; padding: 8px; background: rgba(40,40,40,0.6); border-radius: 5px; margin: 5px 0;">
-                <span><strong>${user}</strong></span>
-                <button class="btn-small" style="background: #ff6b6b;" onclick="dashboard.deleteUser('${user}')">Supprimer</button>
-            </div>`
-        ).join('');
+        try {
+            const snapshot = await this.database.ref('users').once('value');
+            const users = snapshot.val() || {};
+            
+            const usersList = Object.entries(users).map(([user, pass]) => 
+                `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: rgba(40,40,40,0.6); border-radius: 5px; margin: 5px 0;">
+                    <span><strong>${user}</strong></span>
+                    <div>
+                        <button class="btn-small" style="background: #ffc107; margin-right: 5px;" onclick="dashboard.changeUserPassword('${user}')">Changer MDP</button>
+                        <button class="btn-small" style="background: #ff6b6b;" onclick="dashboard.deleteUser('${user}')">Supprimer</button>
+                    </div>
+                </div>`
+            ).join('');
+            
+            modalContent.innerHTML = `
+                <h2>👥 Gestion des Utilisateurs (Firebase)</h2>
+                
+                <div class="education-content">
+                    <h4>👥 Utilisateurs actuels :</h4>
+                    ${usersList}
+                </div>
+                
+                <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px;">
+                    <h3 style="color: #4ecdc4; margin-bottom: 15px;">➕ Ajouter un utilisateur</h3>
+                    <div class="form-group">
+                        <label>Nom d'utilisateur:</label>
+                        <input type="text" id="newUsername" placeholder="nouveau_trader">
+                    </div>
+                    <div class="form-group">
+                        <label>Mot de passe:</label>
+                        <input type="password" id="newPassword" placeholder="MotDePasseSécurisé123!">
+                    </div>
+                    <button class="btn-submit" onclick="dashboard.addUser()">Ajouter Utilisateur</button>
+                </div>
+                
+                <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px;">
+                    <h3 style="color: #ff6b6b; margin-bottom: 15px;">🔑 Changer mon mot de passe</h3>
+                    <div class="form-group">
+                        <label>Nouveau mot de passe:</label>
+                        <input type="password" id="myNewPassword" placeholder="MonNouveauMotDePasse123!">
+                    </div>
+                    <button class="btn-warning" onclick="dashboard.changeMyPassword()">Changer Mon Mot de Passe</button>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn-secondary" onclick="dashboard.showSettings()">← Retour aux Paramètres</button>
+                </div>
+            `;
+        } catch (error) {
+            modalContent.innerHTML = `
+                <h2>❌ Erreur</h2>
+                <p>Impossible de charger les utilisateurs depuis Firebase.</p>
+                <button class="btn-secondary" onclick="dashboard.closeModal()">Fermer</button>
+            `;
+        }
         
-        modalContent.innerHTML = `
-            <h2>👥 Gestion des Utilisateurs</h2>
-            
-            <div class="education-content">
-                <h4>👥 Utilisateurs actuels :</h4>
-                ${usersList}
-            </div>
-            
-            <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px;">
-                <h3 style="color: #4ecdc4; margin-bottom: 15px;">➕ Ajouter un utilisateur</h3>
-                <div class="form-group">
-                    <label>Nom d'utilisateur:</label>
-                    <input type="text" id="newUsername" placeholder="nouveau_trader">
-                </div>
-                <div class="form-group">
-                    <label>Mot de passe:</label>
-                    <input type="password" id="newPassword" placeholder="MotDePasseSécurisé123!">
-                </div>
-                <button class="btn-submit" onclick="dashboard.addUser()">Ajouter Utilisateur</button>
-            </div>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="btn-secondary" onclick="dashboard.showSettings()">← Retour aux Paramètres</button>
-            </div>
-        `;
         this.showModal();
     }
 
-    addUser() {
+    async addUser() {
         const username = document.getElementById('newUsername')?.value.trim();
         const password = document.getElementById('newPassword')?.value;
         
@@ -1265,32 +1665,64 @@ class TradingDashboard {
             return;
         }
         
-        const users = JSON.parse(localStorage.getItem('users')) || {};
-        
-        if (users[username]) {
-            alert('Cet utilisateur existe déjà');
-            return;
+        try {
+            const snapshot = await this.database.ref(`users/${username}`).once('value');
+            if (snapshot.exists()) {
+                alert('Cet utilisateur existe déjà');
+                return;
+            }
+            
+            await this.database.ref(`users/${username}`).set(password);
+            alert(`Utilisateur "${username}" ajouté avec succès !`);
+            this.showUserManagement();
+        } catch (error) {
+            alert('Erreur lors de l\'ajout : ' + error.message);
         }
-        
-        users[username] = password;
-        localStorage.setItem('users', JSON.stringify(users));
-        
-        alert(`Utilisateur "${username}" ajouté avec succès !`);
-        this.showUserManagement(); // Rafraîchir la liste
     }
     
-    deleteUser(username) {
+    async deleteUser(username) {
         if (username === 'admin') {
             alert('Impossible de supprimer le compte admin principal');
             return;
         }
         
         if (confirm(`Supprimer l'utilisateur "${username}" ?`)) {
-            const users = JSON.parse(localStorage.getItem('users')) || {};
-            delete users[username];
-            localStorage.setItem('users', JSON.stringify(users));
-            alert(`Utilisateur "${username}" supprimé`);
-            this.showUserManagement(); // Rafraîchir la liste
+            try {
+                await this.database.ref(`users/${username}`).remove();
+                alert(`Utilisateur "${username}" supprimé`);
+                this.showUserManagement();
+            } catch (error) {
+                alert('Erreur lors de la suppression : ' + error.message);
+            }
+        }
+    }
+
+    async changeUserPassword(username) {
+        const newPassword = prompt(`Nouveau mot de passe pour "${username}" :`);
+        if (!newPassword) return;
+        
+        try {
+            await this.database.ref(`users/${username}`).set(newPassword);
+            alert(`Mot de passe de "${username}" changé avec succès !`);
+            this.showUserManagement();
+        } catch (error) {
+            alert('Erreur lors du changement : ' + error.message);
+        }
+    }
+
+    async changeMyPassword() {
+        const newPassword = document.getElementById('myNewPassword')?.value;
+        if (!newPassword) {
+            alert('Veuillez entrer un nouveau mot de passe');
+            return;
+        }
+        
+        try {
+            await this.database.ref(`users/${this.currentUser}`).set(newPassword);
+            alert('Votre mot de passe a été changé avec succès !');
+            this.showUserManagement();
+        } catch (error) {
+            alert('Erreur lors du changement : ' + error.message);
         }
     }
 
