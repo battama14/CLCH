@@ -565,6 +565,54 @@ class TradingDashboard {
         window.addEventListener('beforeunload', () => {
             this.autoSaveToCloud();
         });
+        
+        // Écouter les changements en temps réel
+        this.startRealtimeSync();
+    }
+
+    startRealtimeSync() {
+        const syncCode = this.getSyncCode();
+        if (!syncCode || !this.cloudEnabled) return;
+        
+        try {
+            this.database.ref(`trading_data/${syncCode}`).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.timestamp) {
+                    const localTimestamp = localStorage.getItem(`lastSync_${this.currentUser}`) || 0;
+                    
+                    if (data.timestamp > localTimestamp && data.deviceId !== this.getDeviceId()) {
+                        // Données mises à jour par un autre appareil
+                        this.accounts = data.accounts || this.accounts;
+                        this.currentAccount = data.currentAccount || this.currentAccount;
+                        
+                        Object.keys(this.accounts).forEach(accountKey => {
+                            if (data[`trades_${accountKey}`]) {
+                                localStorage.setItem(`trades_${this.currentUser}_${accountKey}`, JSON.stringify(data[`trades_${accountKey}`]));
+                            }
+                            if (data[`settings_${accountKey}`]) {
+                                localStorage.setItem(`settings_${this.currentUser}_${accountKey}`, JSON.stringify(data[`settings_${accountKey}`]));
+                            }
+                        });
+                        
+                        this.trades = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${this.currentAccount}`)) || [];
+                        this.settings = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${this.currentAccount}`)) || { capital: 1000, riskPerTrade: 2 };
+                        
+                        localStorage.setItem(`lastSync_${this.currentUser}`, data.timestamp);
+                        
+                        // Mettre à jour l'interface
+                        this.initAccountSelector();
+                        this.updateStats();
+                        this.renderTradesTable();
+                        this.updateCharts();
+                        this.updateCalendar();
+                        
+                        this.showNotification('🔄 Synchronisé depuis autre appareil');
+                    }
+                }
+            });
+        } catch (error) {
+            console.log('Erreur sync temps réel:', error);
+        }
     }
 
     async autoSaveToCloud() {
@@ -577,7 +625,8 @@ class TradingDashboard {
                 accounts: this.accounts,
                 currentAccount: this.currentAccount,
                 timestamp: Date.now(),
-                lastUpdate: new Date().toISOString()
+                lastUpdate: new Date().toISOString(),
+                deviceId: this.getDeviceId()
             };
             
             Object.keys(this.accounts).forEach(accountKey => {
@@ -592,6 +641,15 @@ class TradingDashboard {
             console.log('Auto-save échoué:', error);
             this.updateSyncStatus('❌ Erreur', '#ff6b6b');
         }
+    }
+
+    getDeviceId() {
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('deviceId', deviceId);
+        }
+        return deviceId;
     }
 
     updateSyncStatus(text, color) {

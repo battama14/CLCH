@@ -1270,78 +1270,171 @@ tr:hover {
     color: #ff6b6b;
 }
 
-/* Responsive */
+/* Responsive Mobile */
 @media (max-width: 768px) {
-    .charts-section {
-        grid-template-columns: 1fr;
+    .container {
+        padding: 10px;
+    }
+    
+    header {
+        padding: 20px 15px;
+    }
+    
+    header h1 {
+        font-size: 1.8em;
+        margin-bottom: 20px;
+    }
+    
+    .account-selector {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+        margin-bottom: 20px;
+    }
+    
+    .account-selector label {
+        text-align: center;
+        font-size: 1em;
+    }
+    
+    .account-selector select {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .account-selector button {
+        margin: 0 !important;
+        padding: 8px 12px !important;
+        font-size: 0.9em;
+    }
+    
+    #syncStatus {
+        margin: 0 !important;
+        text-align: center;
     }
     
     .stats-overview {
         grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .modal-content {
-        width: 95%;
-        margin: 10% auto;
-        padding: 25px;
-    }
-    
-    .actions {
-        flex-wrap: wrap;
-    }
-    
-    .btn-primary, .btn-secondary, .btn-warning, .btn-danger, .btn-info {
-        margin: 5px;
-        padding: 12px 20px;
-        font-size: 1em;
-    }
-    
-    .live-prices {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    header h1 {
-        font-size: 2.2em;
+        gap: 15px;
     }
     
     .stat-card {
-        padding: 20px;
+        padding: 15px;
+    }
+    
+    .stat-card h3 {
+        font-size: 0.9em;
     }
     
     .stat-card span {
-        font-size: 2em;
+        font-size: 1.5em;
+    }
+    
+    main {
+        padding: 20px 15px;
+    }
+    
+    .actions {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 30px;
+    }
+    
+    .btn-primary, .btn-secondary, .btn-warning, .btn-danger, .btn-info {
+        margin: 0;
+        padding: 12px 8px;
+        font-size: 0.85em;
+        text-align: center;
+    }
+    
+    .charts-section {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .chart-container {
+        padding: 15px;
     }
     
     .gauge {
-        width: 150px;
-        height: 150px;
-    }
-    
-    .gauge::before {
         width: 120px;
         height: 120px;
     }
     
+    .gauge::before {
+        width: 90px;
+        height: 90px;
+    }
+    
     .gauge-value {
-        font-size: 1.8em;
+        font-size: 1.3em;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 20px;
+        max-height: 90vh;
+    }
+    
+    .trades-history {
+        overflow-x: auto;
+    }
+    
+    table {
+        min-width: 600px;
+        font-size: 0.8em;
+    }
+    
+    th, td {
+        padding: 8px 4px;
     }
     
     .calendar-grid {
-        gap: 4px;
+        gap: 2px;
     }
     
     .calendar-cell {
-        min-height: 60px;
-        padding: 4px;
+        min-height: 50px;
+        padding: 2px;
     }
     
     .cell-pnl {
-        font-size: 12px;
-        margin-top: 15px;
+        font-size: 10px;
+        margin-top: 10px;
     }
     
     .calendar-summary {
         grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.5em;
+    }
+    
+    .stats-overview {
+        grid-template-columns: 1fr;
+    }
+    
+    .actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .btn-primary, .btn-secondary, .btn-warning, .btn-danger, .btn-info {
+        padding: 15px;
+        font-size: 1em;
+    }
+    
+    .account-selector {
+        gap: 10px;
+    }
+    
+    .account-selector button {
+        padding: 10px !important;
     }
 }
 
