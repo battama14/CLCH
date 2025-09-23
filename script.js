@@ -1,8 +1,14 @@
 class TradingDashboard {
     constructor() {
         this.currentUser = sessionStorage.getItem('currentUser') || 'default';
-        this.trades = JSON.parse(localStorage.getItem(`trades_${this.currentUser}`)) || [];
-        this.settings = JSON.parse(localStorage.getItem(`settings_${this.currentUser}`)) || { capital: 1000, riskPerTrade: 2 };
+        this.currentAccount = localStorage.getItem(`currentAccount_${this.currentUser}`) || 'compte1';
+        this.trades = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${this.currentAccount}`)) || [];
+        this.settings = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${this.currentAccount}`)) || { capital: 1000, riskPerTrade: 2 };
+        this.accounts = JSON.parse(localStorage.getItem(`accounts_${this.currentUser}`)) || {
+            'compte1': { name: 'Compte Principal', capital: 1000 },
+            'compte2': { name: 'Compte Démo', capital: 500 },
+            'compte3': { name: 'Compte Swing', capital: 2000 }
+        };
         
         if (this.currentUser === 'admin' && !localStorage.getItem('users')) {
             const defaultUsers = {
@@ -74,11 +80,142 @@ class TradingDashboard {
 
     init() {
         this.setupEventListeners();
+        this.initAccountSelector();
         this.updateStats();
         this.renderTradesTable();
         this.initCharts();
         this.updateCharts();
         this.initCalendar();
+    }
+
+    initAccountSelector() {
+        const accountSelect = document.getElementById('accountSelect');
+        if (accountSelect) {
+            accountSelect.innerHTML = '';
+            Object.entries(this.accounts).forEach(([key, account]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = account.name;
+                if (key === this.currentAccount) {
+                    option.selected = true;
+                }
+                accountSelect.appendChild(option);
+            });
+        }
+    }
+
+    switchAccount(accountKey) {
+        if (accountKey === this.currentAccount) return;
+        
+        // Sauvegarder les données actuelles
+        this.saveToStorage();
+        
+        // Changer de compte
+        this.currentAccount = accountKey;
+        localStorage.setItem(`currentAccount_${this.currentUser}`, accountKey);
+        
+        // Charger les données du nouveau compte
+        this.trades = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${this.currentAccount}`)) || [];
+        this.settings = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${this.currentAccount}`)) || { 
+            capital: this.accounts[accountKey]?.capital || 1000, 
+            riskPerTrade: 2 
+        };
+        
+        // Mettre à jour l'interface
+        this.updateStats();
+        this.renderTradesTable();
+        this.updateCharts();
+        this.updateCalendar();
+        
+        // Notification
+        const accountName = this.accounts[accountKey]?.name || accountKey;
+        this.showNotification(`Compte changé vers: ${accountName}`);
+    }
+
+    addNewAccount() {
+        const accountName = prompt('Nom du nouveau compte:', 'Mon Nouveau Compte');
+        if (!accountName) return;
+        
+        const initialCapital = parseFloat(prompt('Capital initial ($):', '1000'));
+        if (isNaN(initialCapital) || initialCapital <= 0) {
+            alert('Capital invalide');
+            return;
+        }
+        
+        const accountKey = 'compte' + (Object.keys(this.accounts).length + 1);
+        this.accounts[accountKey] = {
+            name: accountName,
+            capital: initialCapital
+        };
+        
+        localStorage.setItem(`accounts_${this.currentUser}`, JSON.stringify(this.accounts));
+        this.initAccountSelector();
+        
+        this.showNotification(`Compte "${accountName}" créé avec succès!`);
+    }
+
+    deleteAccount() {
+        const accountKeys = Object.keys(this.accounts);
+        if (accountKeys.length <= 1) {
+            alert('Impossible de supprimer le dernier compte.');
+            return;
+        }
+        
+        const accountName = this.accounts[this.currentAccount]?.name || this.currentAccount;
+        if (confirm(`Supprimer le compte "${accountName}" et toutes ses données ?`)) {
+            // Supprimer les données du compte
+            localStorage.removeItem(`trades_${this.currentUser}_${this.currentAccount}`);
+            localStorage.removeItem(`settings_${this.currentUser}_${this.currentAccount}`);
+            
+            // Supprimer le compte de la liste
+            delete this.accounts[this.currentAccount];
+            
+            // Passer au premier compte disponible
+            const firstAccount = Object.keys(this.accounts)[0];
+            this.currentAccount = firstAccount;
+            localStorage.setItem(`currentAccount_${this.currentUser}`, firstAccount);
+            
+            // Charger les données du nouveau compte
+            this.trades = JSON.parse(localStorage.getItem(`trades_${this.currentUser}_${this.currentAccount}`)) || [];
+            this.settings = JSON.parse(localStorage.getItem(`settings_${this.currentUser}_${this.currentAccount}`)) || { 
+                capital: this.accounts[this.currentAccount]?.capital || 1000, 
+                riskPerTrade: 2 
+            };
+            
+            // Sauvegarder et mettre à jour
+            this.saveToStorage();
+            this.initAccountSelector();
+            this.updateStats();
+            this.renderTradesTable();
+            this.updateCharts();
+            this.updateCalendar();
+            
+            this.showNotification(`Compte "${accountName}" supprimé`);
+        }
+    }
+
+    showNotification(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #00d4ff, #5b86e5);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+            animation: slideInRight 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 
     setupEventListeners() {
@@ -413,7 +550,8 @@ class TradingDashboard {
         if (capitalInput && riskInput) {
             this.settings.capital = parseFloat(capitalInput.value);
             this.settings.riskPerTrade = parseFloat(riskInput.value);
-            localStorage.setItem(`settings_${this.currentUser}`, JSON.stringify(this.settings));
+            this.accounts[this.currentAccount].capital = this.settings.capital;
+            this.saveToStorage();
         }
         
         this.closeModal();
@@ -421,15 +559,17 @@ class TradingDashboard {
     }
 
     resetAllData() {
-        if (confirm('Voulez-vous vraiment supprimer toutes VOS données ? Cette action est irréversible.')) {
-            localStorage.removeItem(`trades_${this.currentUser}`);
-            localStorage.removeItem(`settings_${this.currentUser}`);
+        const accountName = this.accounts[this.currentAccount]?.name || this.currentAccount;
+        if (confirm(`Voulez-vous vraiment supprimer toutes les données du compte "${accountName}" ? Cette action est irréversible.`)) {
+            localStorage.removeItem(`trades_${this.currentUser}_${this.currentAccount}`);
+            localStorage.removeItem(`settings_${this.currentUser}_${this.currentAccount}`);
             this.trades = [];
-            this.settings = { capital: 1000, riskPerTrade: 2 };
+            this.settings = { capital: this.accounts[this.currentAccount]?.capital || 1000, riskPerTrade: 2 };
             this.updateStats();
             this.renderTradesTable();
             this.updateCharts();
-            alert('Toutes vos données ont été supprimées.');
+            this.updateCalendar();
+            alert(`Toutes les données du compte "${accountName}" ont été supprimées.`);
         }
     }
 
@@ -1067,7 +1207,9 @@ class TradingDashboard {
     }
 
     saveToStorage() {
-        localStorage.setItem(`trades_${this.currentUser}`, JSON.stringify(this.trades));
+        localStorage.setItem(`trades_${this.currentUser}_${this.currentAccount}`, JSON.stringify(this.trades));
+        localStorage.setItem(`settings_${this.currentUser}_${this.currentAccount}`, JSON.stringify(this.settings));
+        localStorage.setItem(`accounts_${this.currentUser}`, JSON.stringify(this.accounts));
     }
 
     showStepChart(stepKey) {

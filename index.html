@@ -37,6 +37,16 @@
     <div class="container">
         <header>
             <h1>Dashboard Trading</h1>
+            <div class="account-selector">
+                <label for="accountSelect">💼 Compte:</label>
+                <select id="accountSelect" onchange="dashboard.switchAccount(this.value)">
+                    <option value="compte1">Compte Principal</option>
+                    <option value="compte2">Compte Démo</option>
+                    <option value="compte3">Compte Swing</option>
+                </select>
+                <button id="addAccountBtn" onclick="dashboard.addNewAccount()" class="btn-info" style="padding: 5px 10px; margin-left: 10px;">+ Nouveau</button>
+                <button id="deleteAccountBtn" onclick="dashboard.deleteAccount()" class="btn-danger" style="padding: 5px 10px; margin-left: 5px;">🗑️</button>
+            </div>
             <div class="stats-overview">
                 <div class="stat-card">
                     <h3>Capital</h3>

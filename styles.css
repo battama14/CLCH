@@ -70,6 +70,43 @@ header h1 {
     animation: glow 2s ease-in-out infinite alternate;
 }
 
+/* Account Selector */
+.account-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    gap: 10px;
+}
+
+.account-selector label {
+    color: #00d4ff;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.account-selector select {
+    background: rgba(0, 212, 255, 0.1);
+    border: 2px solid rgba(0, 212, 255, 0.3);
+    color: #00d4ff;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.account-selector select:hover {
+    border-color: #00d4ff;
+    background: rgba(0, 212, 255, 0.2);
+}
+
+.account-selector select:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
 @keyframes glow {
     from { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3)); }
     to { filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.6)); }
@@ -861,6 +898,17 @@ tr:hover {
 @keyframes particleFloat {
     0% { transform: translateY(0px) rotate(0deg); }
     100% { transform: translateY(-100px) rotate(360deg); }
+}
+
+/* Animations pour les notifications */
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
 }
 
 /* Effet de brillance sur les cartes */
