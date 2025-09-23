@@ -242,7 +242,7 @@ class TradingDashboard {
             const snapshot = await this.database.ref('users').once('value');
             const users = snapshot.val();
             
-            if (!users && this.currentUser === 'admin') {
+            if (!users) {
                 // Créer les utilisateurs par défaut dans Firebase
                 const defaultUsers = {
                     "admin": "TradingPro2024!",
@@ -252,9 +252,27 @@ class TradingDashboard {
                 };
                 await this.database.ref('users').set(defaultUsers);
                 console.log('Utilisateurs par défaut créés dans Firebase');
+            } else if (!users.admin) {
+                // Ajouter le compte admin s'il n'existe pas
+                await this.database.ref('users/admin').set('TradingPro2024!');
+                console.log('Compte admin créé dans Firebase');
             }
         } catch (error) {
             console.log('Erreur init utilisateurs:', error);
+        }
+    }
+
+    async createAdminAccount() {
+        if (!this.cloudEnabled) {
+            alert('Firebase non disponible');
+            return;
+        }
+        
+        try {
+            await this.database.ref('users/admin').set('TradingPro2024!');
+            alert('Compte admin créé dans Firebase ! Vous pouvez maintenant vous connecter avec admin / TradingPro2024!');
+        } catch (error) {
+            alert('Erreur lors de la création : ' + error.message);
         }
     }
 
@@ -1639,6 +1657,12 @@ class TradingDashboard {
                         <input type="password" id="myNewPassword" placeholder="MonNouveauMotDePasse123!">
                     </div>
                     <button class="btn-warning" onclick="dashboard.changeMyPassword()">Changer Mon Mot de Passe</button>
+                </div>
+                
+                <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px;">
+                    <h3 style="color: #00d4ff; margin-bottom: 15px;">🔥 Créer Compte Admin Principal</h3>
+                    <p style="color: rgba(255,255,255,0.7); margin-bottom: 15px;">Créer le compte admin dans Firebase pour pouvoir vous connecter avec admin / TradingPro2024!</p>
+                    <button class="btn-primary" onclick="dashboard.createAdminAccount()">Créer Compte Admin dans Firebase</button>
                 </div>
                 
                 <div style="text-align: center; margin-top: 20px;">
