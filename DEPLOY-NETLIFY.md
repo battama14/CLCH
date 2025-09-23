@@ -36,12 +36,13 @@ GUEST_HASH = f25a2fc72690b780b2a14e140ef6a9e0
 - **HTTPS obligatoire** : Chiffrement des communications
 - **Variables d'environnement** : Inaccessibles depuis le navigateur
 
-### 🔒 Comptes disponibles :
-- **admin** / TradingPro2024! (compte principal)
+### 🔒 Comptes de démonstration :
 - **demo_admin** / hello
 - **demo_trader** / test  
 - **demo_user** / password
 - **guest** / Guest789!
+
+⚠️ **Note :** Le compte admin principal n'est pas affiché publiquement pour des raisons de sécurité.
 
 ## 🛠️ Pour ajouter un nouvel utilisateur :
 

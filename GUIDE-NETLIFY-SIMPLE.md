@@ -47,8 +47,9 @@ Valeur: f25a2fc72690b780b2a14e140ef6a9e0
 
 ### 4️⃣ **Tester**
 1. Cliquez sur le lien de votre site (ex: `https://votre-site.netlify.app`)
-2. Connectez-vous avec : **admin** / **TradingPro2024!**
-3. ✅ Ça marche !
+2. Connectez-vous avec votre compte admin privé
+3. Ou testez avec : **demo_admin** / **hello**
+4. ✅ Ça marche !
 
 ## 🎯 **RÉSUMÉ VISUEL**
 
