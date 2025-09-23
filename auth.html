@@ -155,6 +155,17 @@
         <div class="logo">Trading Pro</div>
         <div class="subtitle">Accès sécurisé au dashboard</div>
         
+        <div style="background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3); padding: 15px; border-radius: 10px; margin-bottom: 30px; font-size: 0.9em;">
+            <div style="color: #00d4ff; font-weight: 600; margin-bottom: 8px;">🔐 Comptes de démonstration :</div>
+            <div style="color: rgba(255,255,255,0.8); line-height: 1.4;">
+                <strong>admin</strong> / TradingPro2024!<br>
+                <strong>demo_admin</strong> / hello<br>
+                <strong>demo_trader</strong> / test<br>
+                <strong>demo_user</strong> / password<br>
+                <strong>guest</strong> / Guest789!
+            </div>
+        </div>
+        
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">Nom d'utilisateur</label>
@@ -173,40 +184,68 @@
     </div>
 
     <script>
-        // Utilisateurs autorisés (ajoutez autant d'utilisateurs que nécessaire)
-        const USERS = {
-            "admin": "TradingPro2024!",
-            "trader1": "Trader123!",
-            "trader2": "Market456!",
-            "guest": "Guest789!"
-        };
-        
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('error');
+            const loginBtn = document.querySelector('.login-btn');
             
-            if (USERS[username] && USERS[username] === password) {
-                // Stocker l'authentification avec l'utilisateur
-                sessionStorage.setItem('authenticated', 'true');
-                sessionStorage.setItem('currentUser', username);
-                // Rediriger vers le dashboard
-                window.location.href = 'index.html';
-            } else {
-                errorDiv.textContent = 'Nom d\'utilisateur ou mot de passe incorrect';
-                errorDiv.style.display = 'block';
-                document.getElementById('username').value = '';
-                document.getElementById('password').value = '';
+            if (!username || !password) {
+                showError('Veuillez remplir tous les champs');
+                return;
+            }
+            
+            // Afficher le chargement
+            loginBtn.textContent = '🔄 Connexion...';
+            loginBtn.disabled = true;
+            errorDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
                 
-                // Animation d'erreur
-                document.querySelector('.login-container').style.animation = 'shake 0.5s ease-in-out';
-                setTimeout(() => {
-                    document.querySelector('.login-container').style.animation = '';
-                }, 500);
+                const data = await response.json();
+                
+                if (data.success) {
+                    sessionStorage.setItem('authenticated', 'true');
+                    sessionStorage.setItem('currentUser', data.user);
+                    sessionStorage.setItem('authToken', data.token);
+                    window.location.href = 'index.html';
+                } else {
+                    showError(data.error || 'Erreur de connexion');
+                    document.getElementById('password').value = '';
+                }
+            } catch (error) {
+                showError('Erreur de connexion au serveur');
+                console.error('Auth error:', error);
+            } finally {
+                loginBtn.textContent = 'Se connecter';
+                loginBtn.disabled = false;
             }
         });
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            // Animation d'erreur
+            document.querySelector('.login-container').style.animation = 'shake 0.5s ease-in-out';
+            setTimeout(() => {
+                document.querySelector('.login-container').style.animation = '';
+            }, 500);
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
         
         // Animation de secousse pour l'erreur
         const style = document.createElement('style');
