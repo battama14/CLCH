@@ -81,6 +81,8 @@ class TradingDashboard {
         this.updateCharts();
         this.initCalendar();
         this.startAutoSync();
+        // Démarrer la sync temps réel immédiatement
+        setTimeout(() => this.startRealtimeSync(), 2000);
     }
 
     initAccountSelector() {
@@ -571,16 +573,28 @@ class TradingDashboard {
     }
 
     startRealtimeSync() {
-        const syncCode = this.getSyncCode();
-        if (!syncCode || !this.cloudEnabled) return;
+        if (!this.cloudEnabled) return;
         
+        // Vérifier périodiquement s'il y a un code sync
+        this.realtimeInterval = setInterval(() => {
+            const syncCode = this.getSyncCode();
+            if (syncCode && !this.realtimeListener) {
+                this.setupRealtimeListener(syncCode);
+            }
+        }, 3000);
+    }
+
+    setupRealtimeListener(syncCode) {
         try {
-            this.database.ref(`trading_data/${syncCode}`).on('value', (snapshot) => {
+            this.realtimeListener = this.database.ref(`trading_data/${syncCode}`);
+            this.realtimeListener.on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data && data.timestamp) {
                     const localTimestamp = localStorage.getItem(`lastSync_${this.currentUser}`) || 0;
                     
                     if (data.timestamp > localTimestamp && data.deviceId !== this.getDeviceId()) {
+                        console.log('Synchronisation détectée depuis autre appareil');
+                        
                         // Données mises à jour par un autre appareil
                         this.accounts = data.accounts || this.accounts;
                         this.currentAccount = data.currentAccount || this.currentAccount;
@@ -607,11 +621,13 @@ class TradingDashboard {
                         this.updateCalendar();
                         
                         this.showNotification('🔄 Synchronisé depuis autre appareil');
+                        this.updateSyncStatus('✅ Syncé', '#4ecdc4');
                     }
                 }
             });
+            console.log('Listener temps réel activé pour:', syncCode);
         } catch (error) {
-            console.log('Erreur sync temps réel:', error);
+            console.log('Erreur setup listener:', error);
         }
     }
 
@@ -1661,8 +1677,8 @@ class TradingDashboard {
         localStorage.setItem(`settings_${this.currentUser}_${this.currentAccount}`, JSON.stringify(this.settings));
         localStorage.setItem(`accounts_${this.currentUser}`, JSON.stringify(this.accounts));
         
-        // Synchronisation automatique après chaque sauvegarde
-        setTimeout(() => this.autoSaveToCloud(), 1000);
+        // Synchronisation immédiate après chaque sauvegarde
+        this.autoSaveToCloud();
     }
 
     showStepChart(stepKey) {
