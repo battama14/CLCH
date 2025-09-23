@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Hash Admin</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+    <h1>Test Hash pour admin / TradingPro2024!</h1>
+    <div id="result"></div>
+    
+    <script>
+        function hashPassword(password) {
+            return CryptoJS.MD5(password + 'TradingSalt2024').toString();
+        }
+        
+        const hash = hashPassword('TradingPro2024!');
+        document.getElementById('result').innerHTML = `
+            <p><strong>Mot de passe :</strong> TradingPro2024!</p>
+            <p><strong>Hash généré :</strong> ${hash}</p>
+            <p><strong>Hash actuel dans le code :</strong> a8f5f167f44f4964e6c998dee827110c</p>
+            <p><strong>Match :</strong> ${hash === 'a8f5f167f44f4964e6c998dee827110c' ? '✅ OUI' : '❌ NON'}</p>
+        `;
+    </script>
+</body>
+</html>

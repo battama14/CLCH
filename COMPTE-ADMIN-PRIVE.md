@@ -13,7 +13,7 @@
 
 ### 📋 Hash pour Netlify :
 ```
-ADMIN_HASH = a8f5f167f44f4964e6c998dee827110c
+ADMIN_HASH = b8c37e33defde51cf91e1e03e51657da
 ```
 
 ### 🚨 IMPORTANT :
