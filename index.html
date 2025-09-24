@@ -42,7 +42,7 @@
             <h1>Dashboard Trading</h1>
             <div class="account-selector">
                 <label for="accountSelect">💼 Compte:</label>
-                <select id="accountSelect" onchange="dashboard.switchAccount(this.value)">
+                <select id="accountSelect">
                     <option value="compte1">Compte Principal</option>
                     <option value="compte2">Compte Démo</option>
                     <option value="compte3">Compte Swing</option>
@@ -59,14 +59,18 @@
                 </div>
                 <div class="stat-card">
                     <h3>Winrate</h3>
-                    <span id="winrate">0%</span>
+                    <span id="winRate">0%</span>
                 </div>
                 <div class="stat-card">
-                    <h3>Gain Total</h3>
-                    <span id="totalGain">$0</span>
+                    <h3>P&L Total</h3>
+                    <span id="totalPnL">$0</span>
                 </div>
                 <div class="stat-card">
-                    <h3>Trades</h3>
+                    <h3>Trades Ouverts</h3>
+                    <span id="openTrades">0</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Trades</h3>
                     <span id="totalTrades">0</span>
                 </div>
             </div>
@@ -96,6 +100,17 @@
                     <h3>📊 Analyse des Confluences</h3>
                     <canvas id="confluencesChart"></canvas>
                     <div id="confluenceAnalysis" class="confluence-analysis"></div>
+                </div>
+            </div>
+            
+            <div class="chart-container" style="margin-top: 30px;">
+                <h3>🔗 Matrice de Corrélation ICT</h3>
+                <div id="correlationMatrix"></div>
+                <div class="correlation-legend">
+                    <div class="legend-item"><span class="legend-color excellent"></span>Excellente synergie (>80%)</div>
+                    <div class="legend-item"><span class="legend-color good"></span>Bonne synergie (60-80%)</div>
+                    <div class="legend-item"><span class="legend-color average"></span>Synergie moyenne (40-60%)</div>
+                    <div class="legend-item"><span class="legend-color poor"></span>Faible synergie (<40%)</div>
                 </div>
             </div>
 
